@@ -1,0 +1,96 @@
+package dem_mod1;
+
+import java.awt.BorderLayout;
+import java.awt.Container;
+import javax.media.jai.*;
+import javax.swing.JFrame;
+import javax.swing.JScrollPane;
+import org.gdal.gdal.Band;
+import org.gdal.gdal.Dataset;
+import org.gdal.gdal.Driver;
+import org.gdal.gdal.gdal;
+import org.gdal.gdalconst.gdalconst;
+import org.gdal.gdalconst.gdalconstConstants;
+import org.gdal.ogr.Geometry;
+
+public class DEM {
+
+    int spatial_res;//size of pixel
+    double srs;
+    double extent[];
+    public void elevation_Profile(Geometry g) {                     
+        //Draw the graph of elevation  vs locations along the path defined by geometry
+    }
+
+    public void displayDEM(String inputFile) {
+        //display DEM
+        RenderedOp img = JAI.create("fileload", inputFile);
+        JFrame frame = new JFrame();
+        frame.setTitle(inputFile);
+        System.out.println("class name " + getClass().getName());
+        Container contentPane = frame.getContentPane();
+
+        DisplayJAI jai = new DisplayJAI(img);
+        contentPane.add(new JScrollPane(jai), BorderLayout.CENTER);
+
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(400, 200); // adjust the frame size.
+        frame.setVisible(true); // show the frame.
+
+    }
+
+    DEM(String inputFile)// constructor of class DEM
+    {
+        int var, k = 0;
+        gdal.AllRegister();
+        //open dataset
+        Dataset dem = null;
+        if ((dem = (Dataset) gdal.Open(inputFile)) == null) {
+            System.out.println("error opening");
+        } else {
+            System.out.println("file opended.");
+        }
+
+        System.out.println("Size is: " + dem.getRasterXSize() + "x"
+                + dem.getRasterYSize() + "  bands:"
+                + dem.getRasterCount());
+
+        int xPixels = dem.getRasterXSize();
+        int yPixels = dem.getRasterYSize();
+        int total_pixels = xPixels * yPixels;
+        Band band = dem.GetRasterBand(1);        
+
+        //extent 
+        double array[] = new double[5];
+        var = band.ReadRaster(0, 0, 1, 1, array);
+        extent[0] = array[0];
+        var = band.ReadRaster(xPixels, yPixels, 1, 1, array);
+        extent[1] = array[1];
+        for(int i=0;i<extent.length;i++)
+            System.out.println("Extent+  "+extent[i]);
+        
+        
+        //slope and aspect calculation
+        double slope_image[] = new double[total_pixels];
+        double aspect_image[] = new double[total_pixels];
+        double[] image = new double[9];
+
+        double b, c, slope, aspect;
+        for (int i = 0; i < yPixels; i++) {
+            for (int j = 0; j < xPixels; j++) {
+                var = band.ReadRaster(i, j, 3, 3, image);
+                System.out.println("var  " + var);
+                b = ((image[2] + 2 * image[5] + image[8]) - (image[0] + 2 * image[3] + image[6])) / 8;
+                c = ((image[0] + 2 * image[1] + image[2]) - (image[6] + 2 * image[7] + image[8])) / 8;
+                slope = Math.atan(Math.sqrt(b * b + c * c));
+                aspect = b / c;
+                slope_image[k] = slope;
+                aspect_image[k] = aspect;
+            }
+        }
+
+        for (int i = 0; i < total_pixels; i++) {
+            System.out.println(slope_image[i] + "\t" + aspect_image[i]);
+        }
+    }
+}
